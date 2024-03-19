@@ -380,28 +380,25 @@ contract WooPPV2 is Ownable(msg.sender), ReentrancyGuard, Pausable, IWooPPV2 {
             IWooracleV2.State memory state = IWooracleV2(wooracle).state(baseToken);
             (quoteAmount, newPrice) = _calcQuoteAmountSellBase(baseToken, baseAmount, state);
             IWooracleV2(wooracle).postPrice(baseToken, uint128(newPrice));
-            console.log("Post new price: %e", newPrice);
-            console.log("Quote amount: %e", quoteAmount);
-            console.log("Min quote amount: %e", minQuoteAmount);
         }
-
         uint256 swapFee = (quoteAmount * tokenInfos[baseToken].feeRate) / 1e5;
+
         quoteAmount = quoteAmount - swapFee;
-
-        console.log("Quote amount: %e", quoteAmount);
-
+        
         require(quoteAmount >= minQuoteAmount, "WooPPV2: quoteAmount_LT_minQuoteAmount");
 
         unclaimedFee = unclaimedFee + swapFee;
 
-        console.log("Base reserve before: %e", tokenInfos[baseToken].reserve);
-        console.log("Quote reserve before: %e", tokenInfos[quoteToken].reserve);
-
+        console.log("before 1: %e", swapFee);
         tokenInfos[baseToken].reserve = uint192(tokenInfos[baseToken].reserve + baseAmount);
+        console.log("after 1");
+        
+        console.log("swapFee before: %e", swapFee);
+        console.log("reserve %e:", tokenInfos[quoteToken].reserve);
+        console.log("quote amount %e:", quoteAmount);
         tokenInfos[quoteToken].reserve = uint192(tokenInfos[quoteToken].reserve - quoteAmount - swapFee);
-
-        console.log("Base reserve after: %e", tokenInfos[baseToken].reserve);
-        console.log("Quote reserve after: %e", tokenInfos[quoteToken].reserve, "\n");
+        console.log("after");
+        
 
         if (to != address(this)) {
             TransferHelper.safeTransfer(quoteToken, to, quoteAmount);
@@ -440,27 +437,16 @@ contract WooPPV2 is Ownable(msg.sender), ReentrancyGuard, Pausable, IWooPPV2 {
         quoteAmount = quoteAmount - swapFee;
         unclaimedFee = unclaimedFee + swapFee;
 
-        console.log("Quote amount: %e", quoteAmount);
-
         {
             uint256 newPrice;
             IWooracleV2.State memory state = IWooracleV2(wooracle).state(baseToken);
             (baseAmount, newPrice) = _calcBaseAmountSellQuote(baseToken, quoteAmount, state);
             IWooracleV2(wooracle).postPrice(baseToken, uint128(newPrice));
-            console.log("Post new price: %e", newPrice);
-            console.log("Base amount: %e", baseAmount);
-            console.log("Min base amount: %e", minBaseAmount);
             require(baseAmount >= minBaseAmount, "WooPPV2: baseAmount_LT_minBaseAmount");
         }
 
-        console.log("Base reserve before: %e", tokenInfos[baseToken].reserve);
-        console.log("Quote reserve before: %e", tokenInfos[quoteToken].reserve);
-
         tokenInfos[baseToken].reserve = uint192(tokenInfos[baseToken].reserve - baseAmount);
         tokenInfos[quoteToken].reserve = uint192(tokenInfos[quoteToken].reserve + quoteAmount);
-
-        console.log("Base reserve after: %e", tokenInfos[baseToken].reserve);
-        console.log("Quote reserve after: %e", tokenInfos[quoteToken].reserve, "\n");
 
         if (to != address(this)) {
             TransferHelper.safeTransfer(baseToken, to, baseAmount);
@@ -505,15 +491,9 @@ contract WooPPV2 is Ownable(msg.sender), ReentrancyGuard, Pausable, IWooPPV2 {
             state1.spread = spread;
             state2.spread = spread;
 
-            console.log("Spread: %e", spread);
-            console.log("Fee rate: %e", feeRate);
-
             uint256 newBase1Price;
             (quoteAmount, newBase1Price) = _calcQuoteAmountSellBase(baseToken1, base1Amount, state1);
             IWooracleV2(wooracle).postPrice(baseToken1, uint128(newBase1Price));
-            console.log("Post new base1 price: %e", newBase1Price);
-            console.log("Quote amount: %e", quoteAmount);
-            console.log("Min quote amount: %e", minBase2Amount);
 
             swapFee = (quoteAmount * feeRate) / 1e5;
         }
@@ -521,30 +501,17 @@ contract WooPPV2 is Ownable(msg.sender), ReentrancyGuard, Pausable, IWooPPV2 {
         quoteAmount = quoteAmount - swapFee;
         unclaimedFee = unclaimedFee + swapFee;
 
-        console.log("Quote amount: %e", quoteAmount);
-
-        console.log("Base reserve before: %e", tokenInfos[baseToken1].reserve);
-        console.log("Quote reserve before: %e", tokenInfos[quoteToken].reserve);
-
         tokenInfos[quoteToken].reserve = uint192(tokenInfos[quoteToken].reserve - swapFee);
         tokenInfos[baseToken1].reserve = uint192(tokenInfos[baseToken1].reserve + base1Amount);
-
-        console.log("Base reserve after: %e", tokenInfos[baseToken1].reserve);
-        console.log("Quote reserve after: %e", tokenInfos[quoteToken].reserve, "\n");
 
         {
             uint256 newBase2Price;
             (base2Amount, newBase2Price) = _calcBaseAmountSellQuote(baseToken2, quoteAmount, state2);
             IWooracleV2(wooracle).postPrice(baseToken2, uint128(newBase2Price));
-            console.log("Post new base2 price: %e", newBase2Price);
-            console.log("Base2 amount: %e", base2Amount);
-            console.log("Min base2 amount: %e", minBase2Amount);
             require(base2Amount >= minBase2Amount, "WooPPV2: base2Amount_LT_minBase2Amount");
         }
 
-        console.log("Base reserve before: %e", tokenInfos[baseToken2].reserve);
         tokenInfos[baseToken2].reserve = uint192(tokenInfos[baseToken2].reserve - base2Amount);
-        console.log("Base reserve after: %e", tokenInfos[baseToken2].reserve);
 
         if (to != address(this)) {
             TransferHelper.safeTransfer(baseToken2, to, base2Amount);
@@ -598,6 +565,14 @@ contract WooPPV2 is Ownable(msg.sender), ReentrancyGuard, Pausable, IWooPPV2 {
             ((uint256(1e18) - (uint256(2) * state.coeff * state.price * baseAmount) / decs.priceDec / decs.baseDec) *
                 state.price) /
             1e18;
+        console.log("state coeff: %e", state.coeff);
+        console.log("new price: %e", newPrice);
+        console.log("base amount: %e", baseAmount);
+        console.log("priceDec: %e", decs.priceDec);
+        console.log("baseDec: %e", decs.baseDec);
+        console.log("state price: %e", state.price);
+        console.log("calculation: %e", ((uint256(1e18) - (uint256(2) * state.coeff * state.price * baseAmount) / decs.priceDec / decs.baseDec) *
+                state.price));
     }
 
     function _calcBaseAmountSellQuote(
@@ -622,6 +597,9 @@ contract WooPPV2 is Ownable(msg.sender), ReentrancyGuard, Pausable, IWooPPV2 {
             ((uint256(1e18) * decs.quoteDec + uint256(2) * state.coeff * quoteAmount) * state.price) /
             decs.quoteDec /
             1e18;
+        console.log("State coeff: %e", state.coeff);
+        console.log("new price: %e", newPrice);
+        console.log("state price: %e", state.price);
     }
 
     function _maxUInt16(uint16 a, uint16 b) private pure returns (uint16) {

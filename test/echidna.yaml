@@ -1,0 +1,19 @@
+# 1010 ether is placed in the echidna testing contract
+# which then transfers ether to contracts being tested
+# as part of setup in constructor. Constructor must be
+# payable! This value should be in 18 decimals
+balanceContract: 1010000000000000000000
+
+# Don't allow fuzzer to use public/external functions
+# from all contracts as advanced version wraps specific
+# functions to focus on
+allContracts: false
+
+# record fuzzer coverage to see what parts of the code
+# fuzzer executes
+corpusDir: "./test/flash"
+# use same prefix as Foundry invariant tests
+prefix: "invariant_"
+
+# instruct foundry to compile tests
+cryticArgs: ["--foundry-compile-all"]

